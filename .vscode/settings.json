@@ -1,0 +1,6 @@
+{
+  "files.associations": {
+    "libxdp.h": "c",
+    "common_kern_user.h": "c"
+  }
+}
