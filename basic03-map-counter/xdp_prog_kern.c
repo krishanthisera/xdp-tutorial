@@ -9,7 +9,7 @@
  * - The idea is to keep stats per (enum) xdp_action
  */
 struct {
-	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
 	__type(key, __u32);
 	__type(value, struct datarec);
 	__uint(max_entries, XDP_ACTION_MAX);
@@ -23,7 +23,7 @@ struct {
 #endif
 
 SEC("xdp")
-int  xdp_stats1_func(struct xdp_md *ctx)
+int  xdp_stats_func(struct xdp_md *ctx)
 {
 	void *data_end = (void *)(long)ctx->data_end;
 	void *data     = (void *)(long)ctx->data;

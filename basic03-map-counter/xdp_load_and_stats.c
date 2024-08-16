@@ -24,7 +24,7 @@ static const char *__doc__ = "XDP loader and stats program\n"
 #include "common_kern_user.h"
 
 static const char *default_filename = "xdp_prog_kern.o";
-static const char *default_progname = "xdp_stats1_func";
+static const char *default_progname = "xdp_stats_func";
 
 static const struct option_wrapper long_options[] = {
 	{{"help",        no_argument,		NULL, 'h' },
@@ -158,11 +158,28 @@ void map_get_value_array(int fd, __u32 key, struct datarec *value)
 /* BPF_MAP_TYPE_PERCPU_ARRAY */
 void map_get_value_percpu_array(int fd, __u32 key, struct datarec *value)
 {
-	/* For percpu maps, userspace gets a value per possible CPU */
-	// unsigned int nr_cpus = libbpf_num_possible_cpus();
-	// struct datarec values[nr_cpus];
+	/**
+	 * For perscpu map user has to get the value from each cpu
+	 */
+	unsigned int nr_cpus = libbpf_num_possible_cpus();
+	struct datarec values[nr_cpus];
+	__u64 sum_bytes = 0;
+	__u64 sum_packets = 0;
 
-	fprintf(stderr, "ERR: %s() not impl. see assignment#3", __func__);
+	if (bpf_map_lookup_elem(fd, &key, values) != 0) {
+		fprintf(stderr,
+			"ERR: bpf_map_lookup_elem failed key:0x%X\n", key);
+		return;
+	}
+
+	// Summing up the values from each cpu
+	for (int i = 0; i < nr_cpus; i++) {
+		sum_bytes += values[i].rx_bytes;
+		sum_packets += values[i].rx_packets;
+	}
+
+	value->rx_bytes = sum_bytes;
+	value->rx_packets = sum_packets;
 }
 
 static bool map_collect(int fd, __u32 map_type, __u32 key, struct record *rec)
@@ -177,7 +194,8 @@ static bool map_collect(int fd, __u32 map_type, __u32 key, struct record *rec)
 		map_get_value_array(fd, key, &value);
 		break;
 	case BPF_MAP_TYPE_PERCPU_ARRAY:
-		/* fall-through */
+		map_get_value_percpu_array(fd, key, &value);
+		break;
 	default:
 		fprintf(stderr, "ERR: Unknown map_type(%u) cannot handle\n",
 			map_type);
